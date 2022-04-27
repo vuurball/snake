@@ -1,299 +1,271 @@
 <html>
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 </head>
 <body>
 	<script src="https://unpkg.com/vue@3"></script>
 
 	<style>
 		body {
-			background-color: rgb(3, 5, 5);
-      overflow: hidden;
-    }
-            
-        /* for Large screens */
-        /* @media (min-width: 500px) {
-          body {
-            background-color: white;
-          }
-        } */
-
-		#game {
-      position: absolute;
+		  background-color: rgb(3, 5, 5);
+		  overflow: hidden;
 		}
-    #screen {
-      padding: 5px;
-      border-radius: 7px;
-      background: linear-gradient(146.06deg, #a2ceb0 7.61%, #50715a 79.89%);
-      position: absolute;
-    }
-    hr {
-      background-color:rgb(52, 56, 52); 
-      height: 3px;
-      border-width:0;
-      margin: 3px 0px;
-    }
-    #points {
-      color: rgb(52, 56, 52);
-      font-size: 18px;
-      font-family: fantasy;
-      float:right;
-      padding-right:5px;
-    }
-    #game-over {
-      color: rgb(52, 56, 52);
-      font-size: 18px;
-      font-family: fantasy;
-      padding-left: 5px;
-    }
-    #field--wrapper {
-      border: 3px solid rgb(52, 56, 52);
-      padding: 2px;
-    }
+		#screen {
+		  padding: 5px;
+		  border-radius: 7px;
+		  background: linear-gradient(146.06deg, #a2ceb0 7.61%, #50715a 79.89%);
+		  position: absolute;
+		}
+		hr {
+		  background-color: rgb(52, 56, 52);
+		  height: 3px;
+		  border-width: 0;
+		  margin: 3px 0px;
+		}
+		#points {
+		  color: rgb(52, 56, 52);
+		  font-size: 18px;
+		  font-family: fantasy;
+		  float: right;
+		  padding-right: 5px;
+		}
+		#board-message {
+		  color: rgb(52, 56, 52);
+		  font-size: 18px;
+		  font-family: fantasy;
+		  padding-left: 5px;
+		}
+		#field--wrapper {
+		  border: 3px solid rgb(52, 56, 52);
+		  padding: 2px;
+		}
 		.empty-cell {
-			width:10px;
-			height:10px;
+		  width: 10px;
+		  height: 10px;
 		}
-		.fruit{
-			background-color: rgb(52, 56, 52);
-			border: 2px dotted #50715a;
-			/* border-radius: 10px; */
-			width:6px;
-			height:6px;
+		.fruit {
+		  background-color: rgb(52, 56, 52);
+		  border: 2px dotted #50715a;
+		  width: 6px;
+		  height: 6px;
 		}
-    .snake--head, .snake--body{
-			background-color: rgb(52, 56, 52);
-			width:10px;
-			height:10px;
+		.snake--head,
+		.snake--body {
+		  background-color: rgb(52, 56, 52);
+		  width: 10px;
+		  height: 10px;
 		}
 	</style>
+
 	<div id="game">
-    <!-- <img src="https://pixelpapa.com/wp-content/uploads/2018/11/Playing-on-Nokia-3310.jpg" style="width: 2014px;margin-left: -500px;"/> -->
-    <div id="screen">
-    <div id="points">{{ points }}</div>
-    <div id="game-over">{{ massage }} {{nextMove}}</div>
-    <hr/>
-      <div id="field--wrapper">	
-        <table id="field" style="border-collapse: collapse;">
-          <tr v-for="row in board"> 
-            <td v-for="col in row">
-              <div v-bind:class="col.state"></div>
-            </td> 
-          </tr>
-        </table>
-      </div>
-    </div>	
+	  <div id="screen">
+	    <div id="points">{{ points }}</div>
+	    <div id="board-message">{{ massage }}</div>
+	    <hr />
+	    <div id="field--wrapper">
+	      <table id="field" style="border-collapse: collapse;">
+	        <tr v-for="row in board">
+	          <td v-for="col in row">
+	            <div v-bind:class="col.state"></div>
+	          </td>
+	        </tr>
+	      </table>
+	    </div>
+	  </div>
 	</div>
 
-	
-
-	<script>
-	Vue.createApp({
-		data() {
-			return {
-				speed: 300, //ml
-				nextMove: 'up',
-				fruit: '',
-				boardHeight: 20,
-        boardWidth: 20,
-				board: [],
-				emptyCells: [],
-				snakeCells: [],
-        points: 0,
-        nextMoveId: null,
-        massage: 'Snake', 
-        touchStartX:0,
-        touchStartY:0,
-        touchEndX:0,
-        touchEndY:0
-			}
-		},  
-		created() {
-			// create the board
-			for(let x=0; x<this.boardHeight; x++) {
-				let rowData = []
-				for(let y=0; y<this.boardWidth; y++) {
-					this.emptyCells.push(`${x}-${y}`) // position
-					rowData.push({x, y, state: 'empty-cell'})
-				}
-				this.board.push(rowData)
-			}
-      // init snake position
-      const positionK = this.getRandomEmptyCell()
-			this.fillCell(positionK, 'snake--head')
-			this.snakeCells.push(positionK)
-
-			this.setFruit()
-			// listen to key presses
-			window.addEventListener('keydown', (e) => {
-        const evnt = this.getKeyboardEvent(e)
-        this.handleInputEvent(evnt)
-			});
-      window.addEventListener('touchstart', (e) => {
-        this.touchStartX = e.changedTouches[0].screenX
-        this.touchStartY = e.changedTouches[0].screenY
-      })
-      window.addEventListener('touchend', (e) => {
-        this.touchEndX = e.changedTouches[0].screenX
-        this.touchEndY = e.changedTouches[0].screenY
-        const evnt = this.getGestureEvent()
-        this.handleInputEvent(evnt)
-      })
-		},
-		mounted() {
-			this.nextMoveId = setTimeout(this.move, this.speed)
-		},
-		methods: {
-			freeCell(positionKey) {
-				this.emptyCells.push(positionKey)
-				const position = positionKey.split('-')
-				this.board[position[0]][position[1]].state = 'empty-cell'
-			},
-			fillCell(positionKey, content) {
-				const positionI = this.emptyCells.indexOf(positionKey)
-				if(positionI >= 0) {
-					this.emptyCells.splice(positionI, 1) // remove the item
-				}
-				const position = positionKey.split('-')
-				this.board[position[0]][position[1]].state = content
-			},
-			getRandomEmptyCell() {
-				return this.emptyCells[Math.floor(Math.random()*this.emptyCells.length)]
-      },
-      setFruit() {
-				const positionK = this.getRandomEmptyCell()
-				this.fillCell(positionK, 'fruit')
-				this.fruit = positionK
-			},
-			getNextHeadPosition(currentX, currentY, direction) {
-        let nextHeadPosition
-        console.log(direction)
-				switch (direction) {
-					case 'up':
-            nextHeadPosition = {x: Number(currentX) -1, y: Number(currentY)}
-            break
-					case 'down':
-            nextHeadPosition = {x: Number(currentX) +1, y: Number(currentY)}
-            break
-					case 'right':
-            nextHeadPosition = {x: Number(currentX), y: Number(currentY) + 1}
-            break
-					case 'left':
-            nextHeadPosition = {x: Number(currentX), y: Number(currentY) - 1}
-            break
-				}
-        // if snake touched border - continue on the other side
-        if(nextHeadPosition.x < 0) {
-          nextHeadPosition.x = this.boardHeight -1
-        } else if (nextHeadPosition.x >= this.boardHeight) {
-          nextHeadPosition.x = 0
-        } else if(nextHeadPosition.y < 0) {
-          nextHeadPosition.y = this.boardWidth -1
-        } else if(nextHeadPosition.y >= this.boardWidth) {
-          nextHeadPosition.y = 0
+  <script >
+    Vue.createApp({
+      data() {
+        return {
+          points: 0,
+          massage: 'Snake',
+          speed: 280, //ml
+          nextMove: 'up',
+          fruit: '',
+          board: [],
+          emptyCells: [],
+          snakeCells: [],
+          nextMoveId: null,
+          boardHeight: 0,
+          boardWidth: 0,
+          touchStartX: 0,
+          touchStartY: 0,
+          touchEndX: 0,
+          touchEndY: 0
         }
-        return nextHeadPosition
-			},
-			move() {
-				// get head position
-				const [currentHeadKey] = this.snakeCells;
-				const currentHeadPosition = currentHeadKey.split('-')
-				const {x, y} = this.getNextHeadPosition(currentHeadPosition[0], currentHeadPosition[1], this.nextMove)
-				if (this.isGameOver(x, y)) {
-          this.massage = 'Game Over'
-          clearTimeout(this.nextMoveId)
-          this.nextMoveId = null
-				} else {
-          
-          const nextHeadKey = `${x}-${y}`
-          //1. head is moved
-          this.snakeCells.unshift(nextHeadKey) // add to begining of body
-          this.fillCell(nextHeadKey, 'snake--head') // add to board
-          //2. old head turns to body
-          this.fillCell(currentHeadKey, 'snake--body')
-          //3. tail is removed if head didnt eat fruit
-          if (!this.didEatFruit(nextHeadKey)){
-            const currentTailKey = this.snakeCells.pop(); // rm from body
-            this.freeCell(currentTailKey) // rm from board
+      },
+      created() {
+        // get board size based on screen size
+        this.boardWidth = window.innerWidth < 600 ? (window.innerWidth / 12).toFixed(0) - 4 : 20
+        this.boardHeight = window.innerWidth < 600 ? (window.innerHeight / 12).toFixed(0) - 5 : 10
+        // create the board
+        for (let x = 0; x < this.boardHeight; x++) {
+          let rowData = []
+          for (let y = 0; y < this.boardWidth; y++) {
+            this.emptyCells.push(`${x}-${y}`) // position
+            rowData.push({ x, y, state: 'empty-cell' })
+          }
+          this.board.push(rowData)
+        }
+        // init snake position
+        const positionK = this.getRandomEmptyCell()
+        this.fillCell(positionK, 'snake--head')
+        this.snakeCells.push(positionK)
+        this.setFruit()
+        // listen to key presses
+        window.addEventListener('keydown', (e) => {
+          const evnt = this.getKeyboardEvent(e)
+          this.handleInputEvent(evnt)
+        });
+        window.addEventListener('touchstart', (e) => {
+          this.touchStartX = e.changedTouches[0].screenX
+          this.touchStartY = e.changedTouches[0].screenY
+        })
+        window.addEventListener('touchend', (e) => {
+          this.touchEndX = e.changedTouches[0].screenX
+          this.touchEndY = e.changedTouches[0].screenY
+          const evnt = this.getGestureEvent()
+          this.handleInputEvent(evnt)
+        })
+      },
+      mounted() {
+        this.nextMoveId = setTimeout(this.move, this.speed)
+      },
+      methods: {
+        freeCell(positionKey) {
+          this.emptyCells.push(positionKey)
+          const position = positionKey.split('-')
+          this.board[position[0]][position[1]].state = 'empty-cell'
+        },
+        fillCell(positionKey, content) {
+          const positionI = this.emptyCells.indexOf(positionKey)
+          if (positionI >= 0) {
+            this.emptyCells.splice(positionI, 1) // remove the item
+          }
+          const position = positionKey.split('-')
+          this.board[position[0]][position[1]].state = content
+        },
+        getRandomEmptyCell() {
+          return this.emptyCells[Math.floor(Math.random() * this.emptyCells.length)]
+        },
+        setFruit() {
+          const positionK = this.getRandomEmptyCell()
+          this.fillCell(positionK, 'fruit')
+          this.fruit = positionK
+        },
+        getNextHeadPosition(currentX, currentY, direction) {
+          let nextHeadPosition
+          switch (direction) {
+            case 'up':
+              nextHeadPosition = { x: Number(currentX) - 1, y: Number(currentY) }
+              break
+            case 'down':
+              nextHeadPosition = { x: Number(currentX) + 1, y: Number(currentY) }
+              break
+            case 'right':
+              nextHeadPosition = { x: Number(currentX), y: Number(currentY) + 1 }
+              break
+            case 'left':
+              nextHeadPosition = { x: Number(currentX), y: Number(currentY) - 1 }
+              break
+          }
+          // if snake touched border - continue on the other side
+          if (nextHeadPosition.x < 0) {
+            nextHeadPosition.x = this.boardHeight - 1
+          } else if (nextHeadPosition.x >= this.boardHeight) {
+            nextHeadPosition.x = 0
+          } else if (nextHeadPosition.y < 0) {
+            nextHeadPosition.y = this.boardWidth - 1
+          } else if (nextHeadPosition.y >= this.boardWidth) {
+            nextHeadPosition.y = 0
+          }
+          return nextHeadPosition
+        },
+        move() {
+          // get head position
+          const [currentHeadKey] = this.snakeCells;
+          const currentHeadPosition = currentHeadKey.split('-')
+          const {x, y} = this.getNextHeadPosition(currentHeadPosition[0], currentHeadPosition[1], this.nextMove)
+          if (this.isGameOver(x, y)) {
+            this.massage = 'Game Over'
+            clearTimeout(this.nextMoveId)
+            this.nextMoveId = null
           } else {
-            this.setFruit() // add new fruit to board
-            this.points += 1
-            this.speed -= this.speed > 120 ? 10 : 0
-          }
-					this.nextMoveId = setTimeout(this.move, this.speed)
-				}
-			},
-			didEatFruit(nextHeadKey) {
-				return Boolean(this.fruit == nextHeadKey)
-			},
-			isGameOver(currentHeadPositionX, currentHeadPositionY) {
-				return Boolean(this.snakeCells.slice(1, this.snakeCells.length).includes(`${currentHeadPositionX}-${currentHeadPositionY}`))
-			},
-      getKeyboardEvent(e) {
-        switch (e.key) {
-					case 'ArrowUp':
-            return 'up'
-					case 'ArrowDown':
-            return 'down'
-					case 'ArrowRight':
-            return 'right'
-					case 'ArrowLeft':
-            return 'left'
-          case ' ':
-            return 'space'
-          default:
-            return ''
-        }
-      },
-      getGestureEvent() {
-        const distX = Math.abs(this.touchEndX - this.touchStartX) // get horizontal dist traveled by finger while in contact with surface
-        const distY = Math.abs(this.touchEndY - this.touchStartY) // get vertical dist traveled by finger while in contact with surface
-        if(distX < distY) {
-          if(this.touchEndY < this.touchStartY) {
-          return 'up'
-          }
-          if(this.touchEndY > this.touchStartY) {
-            return 'down'
-          }
-        } else {
-          if(this.touchEndX < this.touchStartX) {
-            return 'left'
-          }
-          if(this.touchEndX > this.touchStartX) {
-            return 'right'
-          }
-        }
-
-        return ''
-      },
-      handleInputEvent(e) {
-        switch (e) {
-					case 'up':
-					case 'down':
-					case 'right':
-					case 'left':
-						this.nextMove = e
-						break
-          case 'space':
-            if(this.nextMoveId != null) {
-              // pause the game
-              this.massage = 'Pause'
-              clearTimeout(this.nextMoveId)
-              this.nextMoveId = null
+            const nextHeadKey = `${x}-${y}`
+            //1. head is moved
+            this.snakeCells.unshift(nextHeadKey) // add to begining of body
+            this.fillCell(nextHeadKey, 'snake--head') // add to board
+            //2. old head turns to body
+            this.fillCell(currentHeadKey, 'snake--body')
+            //3. tail is removed if head didnt eat fruit
+            if (!this.didEatFruit(nextHeadKey)) {
+              const currentTailKey = this.snakeCells.pop(); // rm from body
+              this.freeCell(currentTailKey) // rm from board
             } else {
-              if (this.massage = 'Game Over') {
-                // restart the game
-               //todo
-              } else {
-                // unpause the game
-                this.massage = 'Snake'
-                this.nextMoveId = setTimeout(this.move, this.speed)
-              }
+              this.setFruit() // add new fruit to board
+              this.points += 1
+              this.speed -= this.speed > 120 ? 10 : 0
             }
-            break
-				}
-      }
+            this.nextMoveId = setTimeout(this.move, this.speed)
+          }
+        },
+        didEatFruit(nextHeadKey) {
+          return Boolean(this.fruit == nextHeadKey)
+        },
+        isGameOver(currentHeadPositionX, currentHeadPositionY) {
+          return Boolean(this.snakeCells.slice(1, this.snakeCells.length).includes(`${currentHeadPositionX}-${currentHeadPositionY}`))
+        },
+        getKeyboardEvent(e) {
+          switch (e.key) {
+            case 'ArrowUp':
+              return 'up'
+            case 'ArrowDown':
+              return 'down'
+            case 'ArrowRight':
+              return 'right'
+            case 'ArrowLeft':
+              return 'left'
+            case ' ':
+              return 'space'
+            default:
+              return ''
+          }
+        },
+        getGestureEvent() {
+          const distX = Math.abs(this.touchEndX - this.touchStartX) // get horizontal dist traveled by finger while in contact with surface
+          const distY = Math.abs(this.touchEndY - this.touchStartY) // get vertical dist traveled by finger while in contact with surface
+
+          return distX < distY ?
+            (this.touchEndY < this.touchStartY ? 'up' : 'down') :
+            (this.touchEndX < this.touchStartX ? 'left' : 'right')
+        },
+        handleInputEvent(e) {
+          switch (e) {
+            case 'up':
+            case 'down':
+            case 'right':
+            case 'left':
+              this.nextMove = e
+              break
+            case 'space':
+              if (this.nextMoveId != null) {
+                // pause the game
+                this.massage = 'Pause'
+                clearTimeout(this.nextMoveId)
+                this.nextMoveId = null
+              } else {
+                if (this.massage == 'Game Over') {
+                  location.reload() // restart the game
+                } else {
+                  // unpause the game
+                  this.massage = 'Snake'
+                  this.nextMoveId = setTimeout(this.move, this.speed)
+                }
+              }
+              break
+          }
+        }
 		}
 	}).mount('#game')
 	</script>
