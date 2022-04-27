@@ -1,5 +1,8 @@
 <html>
-<head></head>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+</head>
 <body>
 	<script src="https://unpkg.com/vue@3"></script>
 
@@ -8,6 +11,14 @@
 			background-color: rgb(3, 5, 5);
       overflow: hidden;
     }
+            
+        /* for Large screens */
+        /* @media (min-width: 500px) {
+          body {
+            background-color: white;
+          }
+        } */
+
 		#game {
       position: absolute;
 		}
@@ -16,8 +27,6 @@
       border-radius: 7px;
       background: linear-gradient(146.06deg, #a2ceb0 7.61%, #50715a 79.89%);
       position: absolute;
-      top: 435px;
-      left: 721px;
     }
     hr {
       background-color:rgb(52, 56, 52); 
@@ -60,10 +69,10 @@
 		}
 	</style>
 	<div id="game">
-    <img src="https://pixelpapa.com/wp-content/uploads/2018/11/Playing-on-Nokia-3310.jpg" style="width: 2014px;margin-left: -500px;"/>
+    <!-- <img src="https://pixelpapa.com/wp-content/uploads/2018/11/Playing-on-Nokia-3310.jpg" style="width: 2014px;margin-left: -500px;"/> -->
     <div id="screen">
     <div id="points">{{ points }}</div>
-    <div id="game-over">{{ massage }} Speed: {{ speed }}</div>
+    <div id="game-over">{{ massage }} {{nextMove}}</div>
     <hr/>
       <div id="field--wrapper">	
         <table id="field" style="border-collapse: collapse;">
@@ -84,16 +93,20 @@
 		data() {
 			return {
 				speed: 300, //ml
-				nextMove: 'ArrowUp',
+				nextMove: 'up',
 				fruit: '',
-				boardHeight: 10,
+				boardHeight: 20,
         boardWidth: 20,
 				board: [],
 				emptyCells: [],
 				snakeCells: [],
         points: 0,
         nextMoveId: null,
-        massage: 'Snake'
+        massage: 'Snake', 
+        touchStartX:0,
+        touchStartY:0,
+        touchEndX:0,
+        touchEndY:0
 			}
 		},  
 		created() {
@@ -114,28 +127,19 @@
 			this.setFruit()
 			// listen to key presses
 			window.addEventListener('keydown', (e) => {
-				switch (e.key) {
-					case 'ArrowUp':
-					case 'ArrowDown':
-					case 'ArrowRight':
-					case 'ArrowLeft':
-						this.nextMove = e.key
-						break
-          case ' ':
-            console.log('SPACE', this.nextMoveId)
-            if(this.nextMoveId != null) {
-              // pause the game
-              this.massage = 'Pause'
-              clearTimeout(this.nextMoveId)
-              this.nextMoveId = null
-            } else {
-              // unpause the game
-              this.massage = 'Snake'
-              this.nextMoveId = setTimeout(this.move, this.speed)
-            }
-            break
-				}
+        const evnt = this.getKeyboardEvent(e)
+        this.handleInputEvent(evnt)
 			});
+      window.addEventListener('touchstart', (e) => {
+        this.touchStartX = e.changedTouches[0].screenX
+        this.touchStartY = e.changedTouches[0].screenY
+      })
+      window.addEventListener('touchend', (e) => {
+        this.touchEndX = e.changedTouches[0].screenX
+        this.touchEndY = e.changedTouches[0].screenY
+        const evnt = this.getGestureEvent()
+        this.handleInputEvent(evnt)
+      })
 		},
 		mounted() {
 			this.nextMoveId = setTimeout(this.move, this.speed)
@@ -163,16 +167,33 @@
 				this.fruit = positionK
 			},
 			getNextHeadPosition(currentX, currentY, direction) {
+        let nextHeadPosition
+        console.log(direction)
 				switch (direction) {
-					case 'ArrowUp':
-						return {x: Number(currentX) -1, y: Number(currentY)}
-					case 'ArrowDown':
-						return {x: Number(currentX) +1, y: Number(currentY)}
-					case 'ArrowRight':
-						return {x: Number(currentX), y: Number(currentY) + 1}
-					case 'ArrowLeft':
-						return {x: Number(currentX), y: Number(currentY) - 1}
+					case 'up':
+            nextHeadPosition = {x: Number(currentX) -1, y: Number(currentY)}
+            break
+					case 'down':
+            nextHeadPosition = {x: Number(currentX) +1, y: Number(currentY)}
+            break
+					case 'right':
+            nextHeadPosition = {x: Number(currentX), y: Number(currentY) + 1}
+            break
+					case 'left':
+            nextHeadPosition = {x: Number(currentX), y: Number(currentY) - 1}
+            break
 				}
+        // if snake touched border - continue on the other side
+        if(nextHeadPosition.x < 0) {
+          nextHeadPosition.x = this.boardHeight -1
+        } else if (nextHeadPosition.x >= this.boardHeight) {
+          nextHeadPosition.x = 0
+        } else if(nextHeadPosition.y < 0) {
+          nextHeadPosition.y = this.boardWidth -1
+        } else if(nextHeadPosition.y >= this.boardWidth) {
+          nextHeadPosition.y = 0
+        }
+        return nextHeadPosition
 			},
 			move() {
 				// get head position
@@ -181,7 +202,10 @@
 				const {x, y} = this.getNextHeadPosition(currentHeadPosition[0], currentHeadPosition[1], this.nextMove)
 				if (this.isGameOver(x, y)) {
           this.massage = 'Game Over'
+          clearTimeout(this.nextMoveId)
+          this.nextMoveId = null
 				} else {
+          
           const nextHeadKey = `${x}-${y}`
           //1. head is moved
           this.snakeCells.unshift(nextHeadKey) // add to begining of body
@@ -204,13 +228,72 @@
 				return Boolean(this.fruit == nextHeadKey)
 			},
 			isGameOver(currentHeadPositionX, currentHeadPositionY) {
-				return Boolean(currentHeadPositionX < 0 || 
-					currentHeadPositionX >= this.boardHeight  ||
-					currentHeadPositionY < 0 || 
-					currentHeadPositionY >= this.boardWidth  ||
-					this.snakeCells.slice(1, this.snakeCells.length).includes(`${currentHeadPositionX}-${currentHeadPositionY}`)
-				)
-			}
+				return Boolean(this.snakeCells.slice(1, this.snakeCells.length).includes(`${currentHeadPositionX}-${currentHeadPositionY}`))
+			},
+      getKeyboardEvent(e) {
+        switch (e.key) {
+					case 'ArrowUp':
+            return 'up'
+					case 'ArrowDown':
+            return 'down'
+					case 'ArrowRight':
+            return 'right'
+					case 'ArrowLeft':
+            return 'left'
+          case ' ':
+            return 'space'
+          default:
+            return ''
+        }
+      },
+      getGestureEvent() {
+        const distX = Math.abs(this.touchEndX - this.touchStartX) // get horizontal dist traveled by finger while in contact with surface
+        const distY = Math.abs(this.touchEndY - this.touchStartY) // get vertical dist traveled by finger while in contact with surface
+        if(distX < distY) {
+          if(this.touchEndY < this.touchStartY) {
+          return 'up'
+          }
+          if(this.touchEndY > this.touchStartY) {
+            return 'down'
+          }
+        } else {
+          if(this.touchEndX < this.touchStartX) {
+            return 'left'
+          }
+          if(this.touchEndX > this.touchStartX) {
+            return 'right'
+          }
+        }
+
+        return ''
+      },
+      handleInputEvent(e) {
+        switch (e) {
+					case 'up':
+					case 'down':
+					case 'right':
+					case 'left':
+						this.nextMove = e
+						break
+          case 'space':
+            if(this.nextMoveId != null) {
+              // pause the game
+              this.massage = 'Pause'
+              clearTimeout(this.nextMoveId)
+              this.nextMoveId = null
+            } else {
+              if (this.massage = 'Game Over') {
+                // restart the game
+               //todo
+              } else {
+                // unpause the game
+                this.massage = 'Snake'
+                this.nextMoveId = setTimeout(this.move, this.speed)
+              }
+            }
+            break
+				}
+      }
 		}
 	}).mount('#game')
 	</script>
