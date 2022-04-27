@@ -1,0 +1,218 @@
+<html>
+<head></head>
+<body>
+	<script src="https://unpkg.com/vue@3"></script>
+
+	<style>
+		body {
+			background-color: rgb(3, 5, 5);
+      overflow: hidden;
+    }
+		#game {
+      position: absolute;
+		}
+    #screen {
+      padding: 5px;
+      border-radius: 7px;
+      background: linear-gradient(146.06deg, #a2ceb0 7.61%, #50715a 79.89%);
+      position: absolute;
+      top: 435px;
+      left: 721px;
+    }
+    hr {
+      background-color:rgb(52, 56, 52); 
+      height: 3px;
+      border-width:0;
+      margin: 3px 0px;
+    }
+    #points {
+      color: rgb(52, 56, 52);
+      font-size: 18px;
+      font-family: fantasy;
+      float:right;
+      padding-right:5px;
+    }
+    #game-over {
+      color: rgb(52, 56, 52);
+      font-size: 18px;
+      font-family: fantasy;
+      padding-left: 5px;
+    }
+    #field--wrapper {
+      border: 3px solid rgb(52, 56, 52);
+      padding: 2px;
+    }
+		.empty-cell {
+			width:10px;
+			height:10px;
+		}
+		.fruit{
+			background-color: rgb(52, 56, 52);
+			border: 2px dotted #50715a;
+			/* border-radius: 10px; */
+			width:6px;
+			height:6px;
+		}
+    .snake--head, .snake--body{
+			background-color: rgb(52, 56, 52);
+			width:10px;
+			height:10px;
+		}
+	</style>
+	<div id="game">
+    <img src="https://pixelpapa.com/wp-content/uploads/2018/11/Playing-on-Nokia-3310.jpg" style="width: 2014px;margin-left: -500px;"/>
+    <div id="screen">
+    <div id="points">{{ points }}</div>
+    <div id="game-over">{{ massage }} Speed: {{ speed }}</div>
+    <hr/>
+      <div id="field--wrapper">	
+        <table id="field" style="border-collapse: collapse;">
+          <tr v-for="row in board"> 
+            <td v-for="col in row">
+              <div v-bind:class="col.state"></div>
+            </td> 
+          </tr>
+        </table>
+      </div>
+    </div>	
+	</div>
+
+	
+
+	<script>
+	Vue.createApp({
+		data() {
+			return {
+				speed: 300, //ml
+				nextMove: 'ArrowUp',
+				fruit: '',
+				boardHeight: 10,
+        boardWidth: 20,
+				board: [],
+				emptyCells: [],
+				snakeCells: [],
+        points: 0,
+        nextMoveId: null,
+        massage: 'Snake'
+			}
+		},  
+		created() {
+			// create the board
+			for(let x=0; x<this.boardHeight; x++) {
+				let rowData = []
+				for(let y=0; y<this.boardWidth; y++) {
+					this.emptyCells.push(`${x}-${y}`) // position
+					rowData.push({x, y, state: 'empty-cell'})
+				}
+				this.board.push(rowData)
+			}
+      // init snake position
+      const positionK = this.getRandomEmptyCell()
+			this.fillCell(positionK, 'snake--head')
+			this.snakeCells.push(positionK)
+
+			this.setFruit()
+			// listen to key presses
+			window.addEventListener('keydown', (e) => {
+				switch (e.key) {
+					case 'ArrowUp':
+					case 'ArrowDown':
+					case 'ArrowRight':
+					case 'ArrowLeft':
+						this.nextMove = e.key
+						break
+          case ' ':
+            console.log('SPACE', this.nextMoveId)
+            if(this.nextMoveId != null) {
+              // pause the game
+              this.massage = 'Pause'
+              clearTimeout(this.nextMoveId)
+              this.nextMoveId = null
+            } else {
+              // unpause the game
+              this.massage = 'Snake'
+              this.nextMoveId = setTimeout(this.move, this.speed)
+            }
+            break
+				}
+			});
+		},
+		mounted() {
+			this.nextMoveId = setTimeout(this.move, this.speed)
+		},
+		methods: {
+			freeCell(positionKey) {
+				this.emptyCells.push(positionKey)
+				const position = positionKey.split('-')
+				this.board[position[0]][position[1]].state = 'empty-cell'
+			},
+			fillCell(positionKey, content) {
+				const positionI = this.emptyCells.indexOf(positionKey)
+				if(positionI >= 0) {
+					this.emptyCells.splice(positionI, 1) // remove the item
+				}
+				const position = positionKey.split('-')
+				this.board[position[0]][position[1]].state = content
+			},
+			getRandomEmptyCell() {
+				return this.emptyCells[Math.floor(Math.random()*this.emptyCells.length)]
+      },
+      setFruit() {
+				const positionK = this.getRandomEmptyCell()
+				this.fillCell(positionK, 'fruit')
+				this.fruit = positionK
+			},
+			getNextHeadPosition(currentX, currentY, direction) {
+				switch (direction) {
+					case 'ArrowUp':
+						return {x: Number(currentX) -1, y: Number(currentY)}
+					case 'ArrowDown':
+						return {x: Number(currentX) +1, y: Number(currentY)}
+					case 'ArrowRight':
+						return {x: Number(currentX), y: Number(currentY) + 1}
+					case 'ArrowLeft':
+						return {x: Number(currentX), y: Number(currentY) - 1}
+				}
+			},
+			move() {
+				// get head position
+				const [currentHeadKey] = this.snakeCells;
+				const currentHeadPosition = currentHeadKey.split('-')
+				const {x, y} = this.getNextHeadPosition(currentHeadPosition[0], currentHeadPosition[1], this.nextMove)
+				if (this.isGameOver(x, y)) {
+          this.massage = 'Game Over'
+				} else {
+          const nextHeadKey = `${x}-${y}`
+          //1. head is moved
+          this.snakeCells.unshift(nextHeadKey) // add to begining of body
+          this.fillCell(nextHeadKey, 'snake--head') // add to board
+          //2. old head turns to body
+          this.fillCell(currentHeadKey, 'snake--body')
+          //3. tail is removed if head didnt eat fruit
+          if (!this.didEatFruit(nextHeadKey)){
+            const currentTailKey = this.snakeCells.pop(); // rm from body
+            this.freeCell(currentTailKey) // rm from board
+          } else {
+            this.setFruit() // add new fruit to board
+            this.points += 1
+            this.speed -= this.speed > 120 ? 10 : 0
+          }
+					this.nextMoveId = setTimeout(this.move, this.speed)
+				}
+			},
+			didEatFruit(nextHeadKey) {
+				return Boolean(this.fruit == nextHeadKey)
+			},
+			isGameOver(currentHeadPositionX, currentHeadPositionY) {
+				return Boolean(currentHeadPositionX < 0 || 
+					currentHeadPositionX >= this.boardHeight  ||
+					currentHeadPositionY < 0 || 
+					currentHeadPositionY >= this.boardWidth  ||
+					this.snakeCells.slice(1, this.snakeCells.length).includes(`${currentHeadPositionX}-${currentHeadPositionY}`)
+				)
+			}
+		}
+	}).mount('#game')
+	</script>
+</body>
+</html>
